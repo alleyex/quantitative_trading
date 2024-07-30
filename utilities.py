@@ -12,6 +12,9 @@ class initializing:
   def __init__(self, api_key):
     self.api_key = api_key
     self.install("fugle_marketdata")
+        
+    self.fig, self.ax, self.line_loss = self.initialize_plot()
+    self.losses = []
 
   def install(self, package):
     try:    
@@ -55,7 +58,7 @@ class initializing:
 
     return df
 
-  def initialize_plot():
+  def initialize_plot(self):
     plt.ion()
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.set_xlabel("Epochs")
@@ -65,22 +68,16 @@ class initializing:
     ax.legend()
     return fig, ax, line_loss
 
-  def on_epoch_end(epoch, logs, losses, line_loss, ax, fig):
-    losses.append(logs["loss"])
-    line_loss.set_xdata(range(epoch + 1))
-    line_loss.set_ydata(losses)
-    ax.relim()
-    ax.autoscale_view()
-    display(fig)
+  def on_epoch_end(self, epoch, logs):
+    self.losses.append(logs["loss"])
+    self.line_loss.set_xdata(range(epoch + 1))
+    self.line_loss.set_ydata(self.losses)
+    self.ax.relim()
+    self.ax.autoscale_view()
+    display(self.fig)
     clear_output(wait=True)
 
-  def create_plot_callback():
-    fig, ax, line_loss = initialize_plot()
-    losses = []
-
-    def callback(epoch, logs):
-        on_epoch_end(epoch, logs, losses, line_loss, ax, fig)
-
-    return tf.keras.callbacks.LambdaCallback(on_epoch_end=callback)
+  def create_plot_callback(self):
+    return tf.keras.callbacks.LambdaCallback(on_epoch_end = self.on_epoch_end)
 
         
