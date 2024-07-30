@@ -12,10 +12,7 @@ class initializing:
   def __init__(self, api_key):
     self.api_key = api_key
     self.install("fugle_marketdata")
-        
-    self.fig, self.ax, self.line_loss = self.initialize_plot()
-    self.losses = []
-
+   
   def install(self, package):
     try:    
         subprocess.check_call([sys.executable, "-m", "pip", "show", package])
@@ -68,16 +65,20 @@ class initializing:
     ax.legend()
     return fig, ax, line_loss
 
-  def on_epoch_end(self, epoch, logs):
-    self.losses.append(logs["loss"])
-    self.line_loss.set_xdata(range(epoch + 1))
-    self.line_loss.set_ydata(self.losses)
-    self.ax.relim()
-    self.ax.autoscale_view()
-    display(self.fig)
-    clear_output(wait=True)
+  def on_epoch_end(self, epoch, logs, losses, line_loss, ax, fig):
+    losses.append(logs["loss"])
+    line_loss.set_xdata(range(epoch + 1))
+    line_loss.set_ydata(losses)
+    ax.relim()
+    ax.autoscale_view()
+    display(fig)
+    clear_output(wait = True)
 
   def create_plot_callback(self):
-    return tf.keras.callbacks.LambdaCallback(on_epoch_end = self.on_epoch_end)
+    fig, ax, line_loss = self.initialize_plot()
+    losses = []
+    callback = lambda epoch, logs: self.on_epoch_end(epoch, logs, losses, line_loss, ax, fig)
+    
+    return tf.keras.callbacks.LambdaCallback(on_epoch_end = callback)
 
         
