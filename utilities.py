@@ -2,6 +2,10 @@ import subprocess
 import sys
 import os
 import pandas as pd
+import matplotlib.pyplot as plt
+import tensorflow as tf
+
+from IPython.display import display, clear_output
 
 class initializing:
       
@@ -50,3 +54,33 @@ class initializing:
     df.sort_values(by="date", inplace = True)
 
     return df
+
+  def initialize_plot():
+    plt.ion()
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.set_xlabel("Epochs")
+    ax.set_ylabel("Loss")
+    line_loss, = ax.plot([], [], label="Loss")
+    ax.grid(True)
+    ax.legend()
+    return fig, ax, line_loss
+
+  def on_epoch_end(epoch, logs, losses, line_loss, ax, fig):
+    losses.append(logs["loss"])
+    line_loss.set_xdata(range(epoch + 1))
+    line_loss.set_ydata(losses)
+    ax.relim()
+    ax.autoscale_view()
+    display(fig)
+    clear_output(wait=True)
+
+  def create_plot_callback():
+    fig, ax, line_loss = initialize_plot()
+    losses = []
+
+    def callback(epoch, logs):
+        on_epoch_end(epoch, logs, losses, line_loss, ax, fig)
+
+    return tf.keras.callbacks.LambdaCallback(on_epoch_end=callback)
+
+        
