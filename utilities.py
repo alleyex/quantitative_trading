@@ -55,6 +55,8 @@ class initializing:
 
     return df
 
+# ----------------------------------------------------------------------
+      
   def initialize_plot(self):
     plt.ion()
     fig, ax = plt.subplots(figsize=(12, 6))
@@ -81,4 +83,30 @@ class initializing:
     
     return tf.keras.callbacks.LambdaCallback(on_epoch_end = callback)
 
+# -----------------------------------------------------------------------
+
+  def naive(self, symbol, days = 20):
+    df = self.get_data(symbol)
+    df["range"] = np.round((df.close - df.open) / df.open, 4)
+    df["y_hat"] = df.range
+    df["y"] = df.range.shift(-1)
+
+    df.dropna(inplace=True)
+
+    df = df[["y_hat", "y"]].tail(days)
+
+    df["win"] = (df.y_hat > 0) & (df.y > 0)
+    df["win"] = df.win.astype(int)
+    
+    df.loc[df["y_hat"] <= 0, "win"] = 0
+    df.loc[(df["y_hat"] > 0) & (df["y"] <= 0), "win"] = -1
+
+
+    counts = df.win.value_counts().to_string()
+    print(f"Win Value Counts: \n {counts}")
+
+    balance = df.loc[df["win"] != 0, "y"].sum() *100
+    print(f"\nBalance: {balance:.2f} %\n")
+
+    print("Comparison DataFrame:\n\n", df)
         
