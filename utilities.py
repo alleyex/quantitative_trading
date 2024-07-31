@@ -85,8 +85,7 @@ class initializing:
     return tf.keras.callbacks.LambdaCallback(on_epoch_end = callback)
 
 # -----------------------------------------------------------------------
-
-  def naive(self, symbol, days = 20):
+  def show_naive(self, symbol, days = 20):
     df = self.get_data(symbol)
     df["range"] = np.round((df.close - df.open) / df.open, 4)
     df["y_hat"] = df.range
@@ -95,7 +94,9 @@ class initializing:
     df.dropna(inplace=True)
 
     df = df[["y_hat", "y"]].tail(days)
+    self.show_compare_data(df)
 
+  def show_compare_data(self, df):
     df["win"] = (df.y_hat > 0) & (df.y > 0)
     df["win"] = df.win.astype(int)
     
@@ -105,9 +106,12 @@ class initializing:
 
     counts = df.win.value_counts().to_string()
     print(f"Win Value Counts: \n {counts}")
-
+        
     balance = df.loc[df["win"] != 0, "y"].sum() *100
     print(f"\nBalance: {balance:.2f} %\n")
-
+        
     print("Comparison DataFrame:\n\n", df)
+
+        
+
         
