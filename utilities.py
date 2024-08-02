@@ -68,7 +68,7 @@ class initializing:
         
     ax.grid(True)
     ax.legend()
-    return fig, ax, line_loss
+    return fig, ax, lines_dict, losses_dict
 
   def on_epoch_end(self, epoch, logs, losses_dict, lines_dict, ax, fig):
     for key in losses_dict.keys():
