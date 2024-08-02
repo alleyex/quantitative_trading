@@ -58,29 +58,34 @@ class initializing:
 
 # ----------------------------------------------------------------------
       
-  def initialize_plot(self):
+  def initialize_plot(self, metrics):
     plt.ion()
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.set_xlabel("Epochs")
-    ax.set_ylabel("Loss")
-    line_loss, = ax.plot([], [], label="Loss")
+    ax.set_ylabel("Loss")        
+    lines_dict = {metric: ax.plot([], [], label=metric)[0] for metric in metrics}
+    losses_dict = {metric: [] for metric in metrics}
+        
     ax.grid(True)
     ax.legend()
     return fig, ax, line_loss
 
-  def on_epoch_end(self, epoch, logs, losses, line_loss, ax, fig):
-    losses.append(logs["loss"])
-    line_loss.set_xdata(range(epoch + 1))
-    line_loss.set_ydata(losses)
+  def on_epoch_end(self, epoch, logs, losses_dict, lines_dict, ax, fig):
+    for key in losses_dict.keys():
+      losses_dict[key].append(logs[key])
+      lines_dict[key].set_xdata(range(epoch + 1))
+      lines_dict[key].set_ydata(losses_dict[key])
+        
     ax.relim()
     ax.autoscale_view()
+    ax.legend()
     display(fig)
     clear_output(wait = True)
 
-  def create_plot_callback(self):
-    fig, ax, line_loss = self.initialize_plot()
-    losses = []
-    callback = lambda epoch, logs: self.on_epoch_end(epoch, logs, losses, line_loss, ax, fig)
+  def create_plot_callback(self, metrics = ["loss"]):
+    fig, ax, lines_dict, losses_dict = self.initialize_plot(metrics)   
+        
+    callback = lambda epoch, logs: self.on_epoch_end(epoch, logs, losses_dict, lines_dict, ax, fig)
     
     return tf.keras.callbacks.LambdaCallback(on_epoch_end = callback)
 
