@@ -117,6 +117,65 @@ class initializing:
         
     print("Comparison DataFrame:\n\n", df)
 
+
+# -----------indicators------------------------------------------------
+        
+  def sma(self, data, window):
+    return data.rolling(window).mean()
+  
+  def ema(self, data, span):
+    return data.ewm(span=span, adjust=False).mean()
+
+  def wma(self, data, window):
+    weights = np.arange(1, window + 1)
+    wma = data.rolling(window).apply(lambda prices: np.dot(prices, weights) / weights.sum(), raw=True)
+    return wma
+
+  def macd(self, data, short_window=12, long_window=26, signal_window=9):
+    short_ema = self.ema(data, short_window)
+    long_ema = self.ema(data, long_window)
+    macd_line = short_ema - long_ema
+    signal_line = self.ema(macd_line, signal_window)
+    histogram = macd_line - signal_line
+    return macd_line, signal_line, histogram
+
+  def rsi(self, data, window = 14):
+    delta = data.diff()
+    gain = (delta.where(delta > 0, 0)).rolling(window=window).mean()
+    loss = (-delta.where(delta < 0, 0)).rolling(window=window).mean()
+    rs = gain / loss
+    rsi = 100 - (100 / (1 + rs))
+    return rsi
+
+  def kd(self, data, period=14):
+    low = data.low.rolling(window=period).min()
+    high = data.high.rolling(window=period).max()
+    k = 100 * ((data.close - low) / (high - low))
+    d = k.rolling(window=3).mean()
+    return k, d
+        
+  def bias(self, data, window):
+    ma = self.sma(data, window)
+    return ((data - ma) / ma) * 100
+
+  def bollinger_bands(self, data, window=20, num_std=2):
+    mean = data.rolling(window=window).mean()
+    std = data.rolling(window=window).std()
+    upper_band = mean + (std * num_std)
+    lower_band = mean - (std * num_std)
+    return upper_band, lower_band
+
+# ----------------normalizing----------------------------------------------
+  def min_max_value(self, df):
+    max_value = df[['open', 'high', 'low', 'close']].max().max()
+    min_value = df[['open', 'high', 'low', 'close']].min().min()
+    return min_value, max_value
+
+  def min_max_scaling(self, data, min_value, max_value):
+    return np.round((data - min_value) / (max_value - min_value), 4)
+
+
+
         
 
         
