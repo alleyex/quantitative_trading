@@ -165,14 +165,17 @@ class initializing:
     lower_band = mean - (std * num_std)
     return upper_band, lower_band
 
-# ----------------normalizing----------------------------------------------
-  def min_max_value(self, df):
+# ----------------normalizing----------------------------------------------  
+  def calculate_min_max(self, df):
     max_value = df[['open', 'high', 'low', 'close']].max().max()
     min_value = df[['open', 'high', 'low', 'close']].min().min()
     return min_value, max_value
 
-  def min_max_scaling(self, data, min_value, max_value):
-    return np.round((data - min_value) / (max_value - min_value), 4)
+  def min_max_scale(self, df, col_name, min_value, max_value):
+    df[f"scaled_{col_name}"] = np.round((df[[col_name]] - min_value) / (max_value - min_value), 4)
+
+
+
 
 
 
