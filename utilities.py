@@ -165,6 +165,26 @@ class initializing:
     lower_band = mean - (std * num_std)
     return upper_band, lower_band
 
+# ---------------------------------------------------------------
+  def plot_predict(self, model, df, X_test, test_size):
+    results = model.predict(X_test)
+
+    y_hat = results.flatten()
+    y = df.tail(test_size + 1).close.values
+    y = y[:-1]
+
+    fig, ax1 = plt.subplots(figsize = (12, 6))
+
+    ax2 = ax1.twinx()
+    ax1.plot(y, label = "Actual", color = "blue")
+    ax2.plot(y_hat, label = "Predicted", color = "red")
+
+    ax1.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    ax1.grid(True)
+
+    plt.legend()
+    plt.show()
+
 
 
 
