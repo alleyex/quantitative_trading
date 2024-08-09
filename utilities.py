@@ -64,8 +64,9 @@ class initializing:
     ax.set_xlabel("Epochs")
     ax.set_ylabel("Loss")        
     lines_dict = {metric: ax.plot([], [], label=metric)[0] for metric in metrics}
-    losses_dict = {metric: [] for metric in metrics}
-        
+    losses_dict = {metric: [] for metric in metrics}      
+    
+    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))    
     ax.grid(True)
     ax.legend()
     return fig, ax, lines_dict, losses_dict
@@ -166,13 +167,7 @@ class initializing:
     return upper_band, lower_band
 
 # ---------------------------------------------------------------
-  def plot_predict(self, model, df, X_test, test_size):
-    results = model.predict(X_test)
-
-    y_hat = results.flatten()
-    y = df.tail(test_size + 1).close.values
-    y = y[:-1]
-
+  def plot_predict(self, y_hat, y):  
     fig, ax1 = plt.subplots(figsize = (12, 6))
 
     ax2 = ax1.twinx()
@@ -184,6 +179,8 @@ class initializing:
 
     plt.legend()
     plt.show()
+
+# -----------------------------------------------------------
 
 
 
