@@ -1,8 +1,13 @@
+import os
 import sys
+import time
 import subprocess
 import pandas as pd
 import numpy as np
+import tensorflow as tf
+import matplotlib.pyplot as plt
 
+from IPython.display import display, clear_output
 from datetime import datetime, timedelta
 
 class tools:
@@ -20,6 +25,69 @@ class tools:
         print(f"{package} installed successfully.")
   
 # ---------------------------------------------------
+  def get_training_data(self, test_symbol, symbols, window_size, test_size):
+    if test_symbol in symbols:
+      symbols.remove(test_symbol)
+      symbols.append(test_symbol)
+
+    total_df = pd.DataFrame()
+    features = None
+
+    for symbol in symbols:
+      df = self.check_file(symbol)
+      df = self.feature_engineering(df)
+      df = self.normalize(df)
+      df, features = self.assemble(df)
+      df = self.windowed(df, window_size)
+      if test_symbol != symbol:
+        df = df[: -1]
+      print("------------------------------------\n")
+      total_df = pd.concat([total_df, df], ignore_index=True)      
+
+    return total_df, features
+
+  def check_file(self, symbol):
+    
+    file_name = symbol + ".csv"
+
+    if os.path.isfile(file_name):
+      df = pd.read_csv(file_name)
+      print(f"{file_name}: exist!     {df.shape}")
+    else:
+      data = self.get_data(symbol)
+      df = pd.DataFrame(data)
+      df.to_csv(file_name, index=False)
+      print(f"{file_name}: download!    {df.shape}")
+      time.sleep(20)
+
+    df['date'] = pd.to_datetime(df['date'])
+    df.sort_values(by="date", inplace = True)
+
+    return df
+
+  def get_data(self, symbol):
+    from fugle_marketdata import RestClient
+    client = RestClient(api_key=self.api_key)
+
+    this_year = datetime.now().year
+    
+    data = []
+    for year in range(2010, this_year):
+      from_date = f"{year}-01-01"
+      to_date = f"{year}-12-31"
+      yearly_data = client.stock.historical.candles(**{"symbol": symbol, "from": from_date, "to": to_date, "fields": "open,high,low,close,volume,change"})
+      
+      if yearly_data.get("statusCode"):
+        print(f"\n[{symbol} in {year}] \nStatus Code : {yearly_data['statusCode']} Message : {yearly_data['message']}")
+      else:
+        yearly_data = yearly_data['data']
+        yearly_data.sort(key=lambda x: x['date'])
+        data.extend(yearly_data)
+    return data
+
+
+
+  # for predict only
   def get_history_data(self, symbol):
     from fugle_marketdata import RestClient
     client = RestClient(api_key=self.api_key)
@@ -46,7 +114,8 @@ class tools:
     df["bias_12"] = self.bias(df.close, 12)
     df["bias_24"] = self.bias(df.close, 24)
     df["upper_band"], df["lower_band"]= self.bollinger_bands(df.close)
-
+   
+    print(f"Feature Engineering: {df.shape}")
     return df
 
   def normalize(self, df):
@@ -65,6 +134,8 @@ class tools:
     df.dropna(inplace=True)
     df.reset_index(drop = True, inplace = True)
 
+    print(f"normalizing :        {df.shape}")
+
     return df
 
   def assemble(self, df):
@@ -76,19 +147,23 @@ class tools:
     xy_df["y"] = df.apply(lambda row: row.range, axis = 1)
     features = len(xy_df.X.values[0])
 
+    print(f"Features & Lables :  {xy_df.shape}    Number of Features:  {features}")
+
     return xy_df, features
 
-  def windowed(self, df, window_size, test_size):
+  def windowed(self, df, window_size):
     win_df = pd.DataFrame()
     for i in range(window_size):
       win_df[f"x_{i}"] = df.X.shift(i)
 
-    win_df["y"] = df["y"]
-    # win_df["y"] = df["y"].shift(-1)
-    # win_df.y[-1:].fillna(0, inplace=True)
+    # win_df["y"] = df["y"]
+    win_df["y"] = df["y"].shift(-1)
+    win_df.y[-1:].fillna(0, inplace=True)
     win_df.dropna(inplace=True)
     win_df.reset_index(drop = True, inplace = True)
-    win_df = win_df.tail(test_size)
+    # win_df = win_df.tail(test_size)
+
+    print(f"windowed Size = {window_size} :  {win_df.shape}")
 
     return win_df
 
@@ -96,13 +171,9 @@ class tools:
     stacked_data = np.concatenate([np.stack(data[col].values) for col in data.columns], axis=1)
     reshaped_data = stacked_data.reshape(stacked_data.shape[0], window_size, features)
     
+    print(f"reshaped Data :         {reshaped_data.shape}")
     return reshaped_data
  
-  # def test_data(y_df, test_size):
-  #   X_test = df.tail(test_size)
-  #   y_test = df.tail(test_size)  
-  # model20140817.keras
-
 # -----------indicators------------------------------------------------
   def sma(self, data, window):
     return data.rolling(window).mean()
@@ -148,3 +219,39 @@ class tools:
     upper_band = mean + (std * num_std)
     lower_band = mean - (std * num_std)
     return upper_band, lower_band
+
+# ----------------------------------------------------------------------
+      
+  def initialize_plot(self, metrics):
+    plt.ion()
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.set_xlabel("Epochs")
+    ax.set_ylabel("Loss")        
+    lines_dict = {metric: ax.plot([], [], label=metric)[0] for metric in metrics}
+    losses_dict = {metric: [] for metric in metrics}      
+    
+    ax.xaxis.set_major_locator(plt.MaxNLocator(integer=True))    
+    ax.grid(True)
+    ax.legend()
+    return fig, ax, lines_dict, losses_dict
+
+  def on_epoch_end(self, epoch, logs, losses_dict, lines_dict, ax, fig):
+    for key in losses_dict.keys():
+      losses_dict[key].append(logs[key])
+      lines_dict[key].set_xdata(range(epoch + 1))
+      lines_dict[key].set_ydata(losses_dict[key])
+        
+    ax.relim()
+    ax.autoscale_view()
+    ax.legend()
+    display(fig)
+    clear_output(wait = True)
+
+  def create_plot_callback(self, metrics = ["loss"]):
+    fig, ax, lines_dict, losses_dict = self.initialize_plot(metrics)   
+        
+    callback = lambda epoch, logs: self.on_epoch_end(epoch, logs, losses_dict, lines_dict, ax, fig)
+    
+    return tf.keras.callbacks.LambdaCallback(on_epoch_end = callback)
+
+
