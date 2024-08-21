@@ -57,7 +57,7 @@ class tools:
       data = self.get_data(symbol)
       df = pd.DataFrame(data)
       df.to_csv(file_name, index=False)
-      print(f"{file_name}: download!   {df.shape}")
+      print(f"{file_name}: download!  {df.shape}")
       time.sleep(20)
 
     df['date'] = pd.to_datetime(df['date'])
@@ -143,14 +143,13 @@ class tools:
 
   def windowed(self, df, window_size):
     win_df = pd.DataFrame()
-    for i in range(window_size):
+    for i in reversed(range(window_size)):
       win_df[f"x_{i}"] = df.X.shift(i)
 
     win_df["y"] = df["y"].shift(-1)
     win_df.y[-1:].fillna(0, inplace=True)
     win_df.dropna(inplace=True)
     win_df.reset_index(drop = True, inplace = True)
-
 
     print(f"windowed Size = {window_size} :  {win_df.shape}")
 
@@ -288,3 +287,4 @@ class tools:
     print(f"\nBalance: {balance:.2f} %\n")
         
     print("Comparison DataFrame:\n\n", df)
+
