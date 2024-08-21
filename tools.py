@@ -25,7 +25,7 @@ class tools:
         print(f"{package} installed successfully.")
   
 # ---------------------------------------------------
-  def get_training_data(self, test_symbol, symbols, window_size, test_size):
+  def get_history_data(self, test_symbol, symbols, window_size, test_size):
     if test_symbol in symbols:
       symbols.remove(test_symbol)
       symbols.append(test_symbol)
@@ -57,7 +57,7 @@ class tools:
       data = self.get_data(symbol)
       df = pd.DataFrame(data)
       df.to_csv(file_name, index=False)
-      print(f"{file_name}: download!    {df.shape}")
+      print(f"{file_name}: download!   {df.shape}")
       time.sleep(20)
 
     df['date'] = pd.to_datetime(df['date'])
@@ -72,7 +72,7 @@ class tools:
     this_year = datetime.now().year
     
     data = []
-    for year in range(2010, this_year):
+    for year in range(2010, this_year + 1):
       from_date = f"{year}-01-01"
       to_date = f"{year}-12-31"
       yearly_data = client.stock.historical.candles(**{"symbol": symbol, "from": from_date, "to": to_date, "fields": "open,high,low,close,volume,change"})
@@ -85,20 +85,10 @@ class tools:
         data.extend(yearly_data)
     return data
 
-
-
   # for predict only
-  def get_history_data(self, symbol):
-    from fugle_marketdata import RestClient
-    client = RestClient(api_key=self.api_key)
-    
-    to_date = datetime.today().date()
-    from_date = to_date - timedelta(days = 90)
-    
-    data = client.stock.historical.candles(**{"symbol": symbol, "from": from_date, "to": to_date, "fields": "open,high,low,close,volume,turnover,change"})
-    data = data["data"]
-    data.sort(key=lambda x: x["date"])
-    df = pd.DataFrame(data)
+  def get_test_data(self, symbol, test_size):
+    df = self.check_file(symbol)
+    df = df.tail(test_size)
 
     return df
 
@@ -156,12 +146,11 @@ class tools:
     for i in range(window_size):
       win_df[f"x_{i}"] = df.X.shift(i)
 
-    # win_df["y"] = df["y"]
     win_df["y"] = df["y"].shift(-1)
     win_df.y[-1:].fillna(0, inplace=True)
     win_df.dropna(inplace=True)
     win_df.reset_index(drop = True, inplace = True)
-    # win_df = win_df.tail(test_size)
+
 
     print(f"windowed Size = {window_size} :  {win_df.shape}")
 
@@ -255,3 +244,47 @@ class tools:
     return tf.keras.callbacks.LambdaCallback(on_epoch_end = callback)
 
 
+  def plot_predict(self, y_hat, y):  
+    fig, ax1 = plt.subplots(figsize = (12, 6))
+
+    ax2 = ax1.twinx()
+    ax1.plot(y, label = "Actual", color = "blue")
+    ax2.plot(y_hat, label = "Predicted", color = "red")
+
+    ax1.xaxis.set_major_locator(plt.MaxNLocator(integer=True))
+    ax1.grid(True)
+
+    plt.legend()
+    plt.show()
+
+
+# -----------------------------------------------------------------------
+  def show_naive(self, df):
+ 
+    df_range = np.round((df.close - df.open) / df.open, 4)
+   
+    evalu = pd.DataFrame()
+    evalu["y_hat"] = df_range
+    evalu["y"] = df_range.shift(-1)
+
+    evalu.dropna(inplace = True)  
+    evalu.reset_index(inplace = True, drop = True)  
+    
+    self.show_evaluation(evalu)
+
+  def show_evaluation(self, df):
+
+    df["win"] = (df.y_hat > 0) & (df.y > 0)
+    df["win"] = df.win.astype(int)
+    
+    df.loc[df["y_hat"] <= 0, "win"] = 0
+    df.loc[(df["y_hat"] > 0) & (df["y"] <= 0), "win"] = -1
+
+
+    counts = df.win.value_counts().to_string()
+    print(f"Win Value Counts: \n {counts}")
+        
+    balance = df.loc[df["win"] != 0, "y"].sum() *100
+    print(f"\nBalance: {balance:.2f} %\n")
+        
+    print("Comparison DataFrame:\n\n", df)
